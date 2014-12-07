@@ -18,16 +18,16 @@ public class main {
         //String d = "01101100101";
         String d = "111111111111";
         //String d = "1011101011101110";
-        String encoded = hammingEncoder.encodeDecodeWord(d,true);
+        String encoded = hammingEncoder.encodeWord(d);
         System.out.println("PURE  : "+d);
         System.out.println("Before: "+encoded);
         //String encodedError = "010011001100111";
         //String encodedError = "10100111101011100111001111001110";
         //String encodedError = encoded;
-        String encodedError = "11101100111101111";
+        String encodedError = "01111111111111111";
         System.out.println("ERROR : "+encodedError);
 
-        String afterErr = hammingEncoder.encodeDecodeWord(encodedError,false);
+        String afterErr = hammingEncoder.decodeWord(encodedError);
         System.out.println( "Syndrome: "+hammingEncoder.getSyndrome() );
         System.out.println("After : "+afterErr);
     }

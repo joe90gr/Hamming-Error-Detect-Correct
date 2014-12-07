@@ -19,19 +19,64 @@ public class HammingEncoder {
 //   {17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}};
 
     private int[] parity;
-    private boolean isEncode = true;
     private int syndrome = 0;
     private int powersOf;
+    private StringBuilder sb;
+    List<List<Integer>> pl;
 
     public HammingEncoder(){
-
+        this.sb = new StringBuilder();
+        this.pl = new ArrayList<List<Integer>>();
     }
 
-    public List generateHammingCode(String rawWord) {
-        List values = getArrayOfPowers(rawWord);
+    public String encodeWord(String word) {
+        clearAndAppendWord(word, this.sb);
+        insertRedundantBits(this.sb);
+        StringBuilder encodedWord = encodeDecodeWord(this.sb, true);
+        return encodedWord.toString();
+    }
+
+    public String decodeWord(String word) {
+        clearAndAppendWord(word, this.sb);
+        StringBuilder decodedWord = encodeDecodeWord(this.sb, false);
+        return detectAndCorrectError(decodedWord).toString();
+    }
+
+    public int getSyndrome() {
+        return this.syndrome;
+    }
+
+    private StringBuilder encodeDecodeWord(StringBuilder sb, boolean isEncode) {
+        List<List<Integer>> pl = generateHammingCode(sb.toString(), this.pl);
+        this.powersOf= (int) Math.pow(2, pl.size()) / 2;
+        this.parity = new int[ pl.size() ];
+
+        for(int i = 0, powersOfTwo = 1 ; i < pl.size(); i++, powersOfTwo *= 2) {
+            int y = 0;
+
+            for(int j = 0; j < pl.get(i).size(); j++ ) {
+                int thisPl = pl.get(i).get(j);
+                int pli = thisPl == 0 ? thisPl : thisPl - 1 ;
+                int bit = Integer.parseInt( String.valueOf( sb.toString().charAt( pli ) ) );
+
+                y += bit;
+            }
+
+            if(isEncode){
+                sb.replace( powersOfTwo - 1, powersOfTwo, Integer.toString( y % 2 ) );
+            } else {
+                parity[i] = y % 2;
+            }
+
+        }
+        return sb;
+    }
+
+    private List generateHammingCode( String rawWord, List<List<Integer>> pl ) {
+        pl.clear();
+        List values = getArrayListOfPowers(rawWord);
 
         int parityLength = values.size();
-        List<List<Integer>> pl = new ArrayList<List<Integer>>();
 
         for(int i = 0; i < parityLength; i++) {
             int x, add, skip;
@@ -55,7 +100,7 @@ public class HammingEncoder {
         return pl;
     }
 
-    public List getArrayOfPowers(String rawWord) {
+    private List getArrayListOfPowers(String rawWord) {
         List<Integer> powersOfTwo = new ArrayList<Integer>();
         int powersOf = 1;
 
@@ -66,54 +111,19 @@ public class HammingEncoder {
         return powersOfTwo;
     }
 
-    public String encodeDecodeWord(String word, boolean encode) {
-        StringBuilder sb = new StringBuilder();
+    private void clearAndAppendWord(String word, StringBuilder sb) {
+        sb.delete(0, sb.length());
         sb.append(word);
-        this.isEncode = encode;
-
-        insertRedundantBits(sb);
-        List<List<Integer>> pl = generateHammingCode(sb.toString());
-        this.powersOf= (int) Math.pow(2, pl.size()) / 2;
-        this.parity = new int[ pl.size() ];
-
-        for(int i = 0, powersOfTwo = 1 ; i < pl.size(); i++, powersOfTwo *= 2) {
-            int y = 0;
-
-            for(int j = 0; j < pl.get(i).size(); j++ ) {
-                int thisPl = pl.get(i).get(j);
-                int pli = thisPl == 0 ? thisPl : thisPl - 1 ;
-                int bit = Integer.parseInt( String.valueOf( sb.toString().charAt( pli ) ) );
-
-                y += bit;
-            }
-
-            if(this.isEncode){
-                sb.replace( powersOfTwo - 1, powersOfTwo, Integer.toString( y % 2 ) );
-            } else {
-                parity[i] = y % 2;
-            }
-
-        }
-
-        return detectAndCorrectError(sb).toString();
     }
 
-    public StringBuilder detectAndCorrectError(StringBuilder encodedWord) {
-        if(!this.isEncode){
-            int syndrome = computeSyndrome(encodedWord);
-            this.syndrome = syndrome;
-            StringBuilder correctedWord = correctError(encodedWord, syndrome);
-            return stripRedundantBits(correctedWord);
-        }
-
-        return encodedWord;
+    private String detectAndCorrectError(StringBuilder encodedWord) {
+        int syndrome = computeSyndrome(encodedWord);
+        this.syndrome = syndrome;
+        StringBuilder correctedWord = correctError(encodedWord, syndrome);
+        return stripRedundantBits(correctedWord).toString();
     }
 
-    public int getSyndrome() {
-        return this.syndrome;
-    }
-
-    public int computeSyndrome(StringBuilder encodedWord) {
+    private int computeSyndrome(StringBuilder encodedWord) {
         int syndrome = 0;
         for( int i = 0, powersOfTwo = 1; i < parity.length; i++, powersOfTwo *= 2 ) {
             syndrome += getBinaryDigit( encodedWord, powersOfTwo - 1 ) == parity[i] ? 0 : powersOfTwo;
@@ -122,7 +132,7 @@ public class HammingEncoder {
         return syndrome;
     }
 
-    public StringBuilder correctError(StringBuilder encodedWord, int syndrome) {
+    private StringBuilder correctError(StringBuilder encodedWord, int syndrome) {
         if(syndrome != 0) {
             return encodedWord.replace( syndrome - 1, syndrome, String.valueOf(encodedWord.toString().charAt(syndrome - 1) == '1' ? "0" : "1" ) );
         }
@@ -130,15 +140,13 @@ public class HammingEncoder {
         return encodedWord;
     }
 
-    public void insertRedundantBits(StringBuilder unEncodedWord) {
-        if(this.isEncode) {
-            for(int i = 1; i <= unEncodedWord.length(); i*=2){
-                unEncodedWord.insert( i - 1, 0 );
-            }
+    private void insertRedundantBits(StringBuilder unEncodedWord) {
+        for(int i = 1; i <= unEncodedWord.length(); i*=2){
+            unEncodedWord.insert( i - 1, 0 );
         }
     }
 
-    public StringBuilder stripRedundantBits(StringBuilder sb) {
+    private StringBuilder stripRedundantBits(StringBuilder sb) {
         for(int i = this.powersOf; i > 0; i/=2){
             sb.deleteCharAt( i - 1 );
         }
@@ -146,7 +154,7 @@ public class HammingEncoder {
         return sb;
     }
 
-    public int getBinaryDigit( StringBuilder binStr, int index ) {
+    private int getBinaryDigit( StringBuilder binStr, int index ) {
         return Integer.parseInt( String.valueOf( binStr.toString().charAt(index) ) );
     }
 
